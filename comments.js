@@ -70,3 +70,5 @@ http.createServer((req, res) => {
     }
   }
 }).listen(1337, '');
+// Log to console
+console.log('Server running at http://localhost:1337/');
