@@ -1,74 +1,55 @@
 // Create a webserver
-// Create a form
-// Create a submit button
-// Create a textarea
-// Create a list of comments
-// Create a comment input
-// Create a comment submit button
-// Create a comment list
-// Add a comment to the list
-// Add a comment to the list of comments
-// Add a comment to the list of comments
+// Use the webserver to display the comments from the comments.json file
+// Use the webserver to add a new comment to the comments.json file
 
 const http = require('http');
 const fs = require('fs');
-const path = require('path');
 const url = require('url');
 
-const comments = [];
-
 http.createServer((req, res) => {
-  const uri = url.parse(req.url).pathname;
-  const filename = path.join(process.cwd(), uri);
+    const q = url.parse(req.url, true);
+    const filename = q.pathname.slice(1);
+    const method = req.method;
 
-  if (req.method === 'POST') {
-    let body = '';
-    req.on('data', (chunk) => {
-      body += chunk.toString();
-    });
-    req.on('end', () => {
-      comments.push(body);
-      res.writeHead(302, { 'Location': '/' });
-      res.end();
-    });
-  } else {
-    if (uri === '/') {
-      res.writeHead(200, { 'Content-Type': 'text/html' });
-      res.write('<form method="post" action="/"><textarea name="comment"></textarea><button type="submit">Submit</button></form>');
-      res.write('<ul>');
-      for (let comment of comments) {
-        res.write(`<li>${comment}</li>`);
-      }
-      res.write('</ul>');
-      res.end();
-    } else {
-      fs.exists(filename, (exists) => {
-        if (!exists) {
-          res.writeHead(404, { 'Content-Type': 'text/plain' });
-          res.write('404 Not Found\n');
-          res.end();
-          return;
-        }
-
-        if (fs.statSync(filename).isDirectory()) {
-          filename += '/index.html';
-        }
-
-        fs.readFile(filename, 'binary', (err, file) => {
-          if (err) {
-            res.writeHead(500, { 'Content-Type': 'text/plain' });
-            res.write(err + '\n');
-            res.end();
-            return;
-          }
-
-          res.writeHead(200);
-          res.write(file, 'binary');
-          res.end();
+    if (filename === 'comments' && method === 'GET') {
+        fs.readFile('comments.json', (err, data) => {
+            if (err) {
+                res.writeHead(404, { 'Content-Type': 'text/html' });
+                return res.end('404 Not Found');
+            }
+            res.writeHead(200, { 'Content-Type': 'application/json' });
+            res.write(data);
+            return res.end();
         });
-      });
+    } else if (filename === 'comments' && method === 'POST') {
+        let body = '';
+        req.on('data', (data) => {
+            body += data;
+        });
+        req.on('end', () => {
+            const newComment = JSON.parse(body);
+            fs.readFile('comments.json', (err, data) => {
+                if (err) {
+                    res.writeHead(404, { 'Content-Type': 'text/html' });
+                    return res.end('404 Not Found');
+                }
+                const comments = JSON.parse(data);
+                comments.push(newComment);
+                fs.writeFile('comments.json', JSON.stringify(comments), (err) => {
+                    if (err) {
+                        res.writeHead(500, { 'Content-Type': 'text/html' });
+                        return res.end('500 Internal Server Error');
+                    }
+                    res.writeHead(200, { 'Content-Type': 'application/json' });
+                    res.write(JSON.stringify(newComment));
+                    return res.end();
+                });
+            });
+        });
+    } else {
+        res.writeHead(404, { 'Content-Type': 'text/html' });
+        res.end('404 Not Found');
     }
-  }
-}).listen(1337, '');
-// Log to console
-console.log('Server running at http://localhost:1337/');
+}).listen(8080, () => {
+    console.log('Server running at http://localhost:8080/');
+});
